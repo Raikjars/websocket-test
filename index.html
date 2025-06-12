@@ -164,7 +164,8 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 const message = JSON.stringify({
                     type: 'array',
-                    array: myArray
+                    array: myArray,
+                    timestamp: Date.now() // Agregar timestamp para evitar duplicados
                 });
                 ws.send(message);
                 addLog(`Enviando array: ${message}`);
@@ -177,8 +178,8 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.close();
             } else {
-                // Usar un servidor WebSocket gratuito
-                ws = new WebSocket('wss://free.blr2.piesocket.com/v3/channel_1?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D3eiVjgZ9VRiaV');
+                // Usar el servidor de prueba echo.websocket.org
+                ws = new WebSocket('wss://echo.websocket.org');
                 
                 ws.onopen = () => {
                     document.getElementById('status').className = 'status connected';
@@ -187,7 +188,8 @@
                     
                     const message = JSON.stringify({
                         type: 'array',
-                        array: myArray
+                        array: myArray,
+                        timestamp: Date.now()
                     });
                     ws.send(message);
                     addLog(`Enviando array inicial: ${message}`);
@@ -212,14 +214,14 @@
                         if (data.type === 'array') {
                             // Verificar si el array ya existe en otherArrays
                             const existingIndex = otherArrays.findIndex(arr => 
-                                JSON.stringify(arr) === JSON.stringify(data.array)
+                                arr.timestamp === data.timestamp
                             );
 
                             if (existingIndex === -1) {
-                                otherArrays.push(data.array);
+                                otherArrays.push(data);
                                 addLog(`Nuevo array agregado: ${JSON.stringify(data.array)}`);
                             } else {
-                                otherArrays[existingIndex] = data.array;
+                                otherArrays[existingIndex] = data;
                                 addLog(`Array actualizado: ${JSON.stringify(data.array)}`);
                             }
 
