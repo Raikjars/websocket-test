@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba WebSocket - Arrays Booleanos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .array-display {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .toggle-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .toggle-buttons button {
+            flex: 1;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Prueba WebSocket - Arrays Booleanos</h1>
+        <div id="status" class="status disconnected">Desconectado</div>
+        
+        <div class="array-display">
+            <h3>Tu Array:</h3>
+            <div id="myArray" class="toggle-buttons"></div>
+        </div>
+
+        <div class="array-display">
+            <h3>Array Combinado:</h3>
+            <div id="combinedArray" class="toggle-buttons"></div>
+        </div>
+
+        <button onclick="toggleConnection()">Conectar/Desconectar</button>
+    </div>
+
+    <script>
+        let ws = null;
+        let myArray = [false, false, false, false, false];
+        const arraySize = 5;
+
+        // Crear botones para el array
+        function createArrayButtons() {
+            const myArrayDiv = document.getElementById('myArray');
+            const combinedArrayDiv = document.getElementById('combinedArray');
+            
+            myArrayDiv.innerHTML = '';
+            combinedArrayDiv.innerHTML = '';
+
+            for (let i = 0; i < arraySize; i++) {
+                // Botones para mi array
+                const button = document.createElement('button');
+                button.textContent = 'Falso';
+                button.style.backgroundColor = '#dc3545';
+                button.onclick = () => toggleValue(i);
+                myArrayDiv.appendChild(button);
+
+                // Botones para el array combinado
+                const combinedButton = document.createElement('button');
+                combinedButton.textContent = 'Falso';
+                combinedButton.style.backgroundColor = '#dc3545';
+                combinedButton.disabled = true;
+                combinedArrayDiv.appendChild(combinedButton);
+            }
+        }
+
+        // Actualizar la visualización del array
+        function updateArrayDisplay() {
+            const buttons = document.getElementById('myArray').children;
+            for (let i = 0; i < arraySize; i++) {
+                buttons[i].textContent = myArray[i] ? 'Verdadero' : 'Falso';
+                buttons[i].style.backgroundColor = myArray[i] ? '#28a745' : '#dc3545';
+            }
+        }
+
+        // Cambiar el valor de un elemento del array
+        function toggleValue(index) {
+            myArray[index] = !myArray[index];
+            updateArrayDisplay();
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'array',
+                    array: myArray
+                }));
+            }
+        }
+
+        // Conectar/Desconectar WebSocket
+        function toggleConnection() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            } else {
+                // Usar un servidor WebSocket público para pruebas
+                ws = new WebSocket('wss://demo.piesocket.com/v3/channel_1?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D3eiVjgZ9VRiaV');
+                
+                ws.onopen = () => {
+                    document.getElementById('status').className = 'status connected';
+                    document.getElementById('status').textContent = 'Conectado';
+                    ws.send(JSON.stringify({
+                        type: 'array',
+                        array: myArray
+                    }));
+                };
+
+                ws.onclose = () => {
+                    document.getElementById('status').className = 'status disconnected';
+                    document.getElementById('status').textContent = 'Desconectado';
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'resultado') {
+                            const buttons = document.getElementById('combinedArray').children;
+                            for (let i = 0; i < arraySize; i++) {
+                                buttons[i].textContent = data.array[i] ? 'Verdadero' : 'Falso';
+                                buttons[i].style.backgroundColor = data.array[i] ? '#28a745' : '#dc3545';
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error al procesar mensaje:', error);
+                    }
+                };
+            }
+        }
+
+        // Inicializar la interfaz
+        createArrayButtons();
+        updateArrayDisplay();
+    </script>
+</body>
+</html> 

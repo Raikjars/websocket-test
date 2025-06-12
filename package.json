@@ -1,0 +1,9 @@
+{
+  "name": "websocket-test",
+  "version": "1.0.0",
+  "description": "Prueba de WebSocket para compartir arrays de booleanos",
+  "main": "websocket_test.js",
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+} 
