@@ -57,6 +57,14 @@
             flex: 1;
             padding: 15px;
         }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +83,8 @@
         </div>
 
         <button onclick="toggleConnection()">Conectar/Desconectar</button>
+        
+        <div id="log"></div>
     </div>
 
     <script>
@@ -82,6 +92,15 @@
         let myArray = [false, false, false, false, false];
         let otherArrays = [];
         const arraySize = 5;
+
+        // Función para agregar logs
+        function addLog(message) {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
 
         // Crear botones para el array
         function createArrayButtons() {
@@ -135,6 +154,7 @@
                 buttons[i].textContent = combinedArray[i] ? 'Verdadero' : 'Falso';
                 buttons[i].style.backgroundColor = combinedArray[i] ? '#28a745' : '#dc3545';
             }
+            addLog(`Array combinado actualizado: ${JSON.stringify(combinedArray)}`);
         }
 
         // Cambiar el valor de un elemento del array
@@ -142,10 +162,12 @@
             myArray[index] = !myArray[index];
             updateArrayDisplay();
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
+                const message = JSON.stringify({
                     type: 'array',
                     array: myArray
-                }));
+                });
+                ws.send(message);
+                addLog(`Enviando array: ${message}`);
             }
             updateCombinedArray();
         }
@@ -155,16 +177,20 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.close();
             } else {
-                // Usar un servidor WebSocket público para pruebas
-                ws = new WebSocket('wss://demo.piesocket.com/v3/channel_1?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D3eiVjgZ9VRiaV');
+                // Usar un servidor WebSocket gratuito
+                ws = new WebSocket('wss://free.blr2.piesocket.com/v3/channel_1?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D3eiVjgZ9VRiaV');
                 
                 ws.onopen = () => {
                     document.getElementById('status').className = 'status connected';
                     document.getElementById('status').textContent = 'Conectado';
-                    ws.send(JSON.stringify({
+                    addLog('Conectado al servidor WebSocket');
+                    
+                    const message = JSON.stringify({
                         type: 'array',
                         array: myArray
-                    }));
+                    });
+                    ws.send(message);
+                    addLog(`Enviando array inicial: ${message}`);
                 };
 
                 ws.onclose = () => {
@@ -172,10 +198,16 @@
                     document.getElementById('status').textContent = 'Desconectado';
                     otherArrays = [];
                     updateCombinedArray();
+                    addLog('Desconectado del servidor WebSocket');
+                };
+
+                ws.onerror = (error) => {
+                    addLog(`Error en WebSocket: ${error.message}`);
                 };
 
                 ws.onmessage = (event) => {
                     try {
+                        addLog(`Mensaje recibido: ${event.data}`);
                         const data = JSON.parse(event.data);
                         if (data.type === 'array') {
                             // Verificar si el array ya existe en otherArrays
@@ -185,14 +217,16 @@
 
                             if (existingIndex === -1) {
                                 otherArrays.push(data.array);
+                                addLog(`Nuevo array agregado: ${JSON.stringify(data.array)}`);
                             } else {
                                 otherArrays[existingIndex] = data.array;
+                                addLog(`Array actualizado: ${JSON.stringify(data.array)}`);
                             }
 
                             updateCombinedArray();
                         }
                     } catch (error) {
-                        console.error('Error al procesar mensaje:', error);
+                        addLog(`Error al procesar mensaje: ${error.message}`);
                     }
                 };
             }
@@ -202,6 +236,7 @@
         createArrayButtons();
         updateArrayDisplay();
         updateCombinedArray();
+        addLog('Aplicación iniciada');
     </script>
 </body>
 </html> 
