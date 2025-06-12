@@ -80,6 +80,7 @@
     <script>
         let ws = null;
         let myArray = [false, false, false, false, false];
+        let otherArrays = [];
         const arraySize = 5;
 
         // Crear botones para el array
@@ -116,6 +117,26 @@
             }
         }
 
+        // Función para combinar arrays
+        function combinarArrays(arrays) {
+            if (arrays.length === 0) return myArray;
+            
+            return arrays.reduce((resultado, array) => {
+                return resultado.map((valor, index) => valor || array[index]);
+            }, myArray);
+        }
+
+        // Actualizar el array combinado
+        function updateCombinedArray() {
+            const combinedArray = combinarArrays(otherArrays);
+            const buttons = document.getElementById('combinedArray').children;
+            
+            for (let i = 0; i < arraySize; i++) {
+                buttons[i].textContent = combinedArray[i] ? 'Verdadero' : 'Falso';
+                buttons[i].style.backgroundColor = combinedArray[i] ? '#28a745' : '#dc3545';
+            }
+        }
+
         // Cambiar el valor de un elemento del array
         function toggleValue(index) {
             myArray[index] = !myArray[index];
@@ -126,6 +147,7 @@
                     array: myArray
                 }));
             }
+            updateCombinedArray();
         }
 
         // Conectar/Desconectar WebSocket
@@ -148,17 +170,26 @@
                 ws.onclose = () => {
                     document.getElementById('status').className = 'status disconnected';
                     document.getElementById('status').textContent = 'Desconectado';
+                    otherArrays = [];
+                    updateCombinedArray();
                 };
 
                 ws.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        if (data.type === 'resultado') {
-                            const buttons = document.getElementById('combinedArray').children;
-                            for (let i = 0; i < arraySize; i++) {
-                                buttons[i].textContent = data.array[i] ? 'Verdadero' : 'Falso';
-                                buttons[i].style.backgroundColor = data.array[i] ? '#28a745' : '#dc3545';
+                        if (data.type === 'array') {
+                            // Verificar si el array ya existe en otherArrays
+                            const existingIndex = otherArrays.findIndex(arr => 
+                                JSON.stringify(arr) === JSON.stringify(data.array)
+                            );
+
+                            if (existingIndex === -1) {
+                                otherArrays.push(data.array);
+                            } else {
+                                otherArrays[existingIndex] = data.array;
                             }
+
+                            updateCombinedArray();
                         }
                     } catch (error) {
                         console.error('Error al procesar mensaje:', error);
@@ -170,6 +201,7 @@
         // Inicializar la interfaz
         createArrayButtons();
         updateArrayDisplay();
+        updateCombinedArray();
     </script>
 </body>
 </html> 
