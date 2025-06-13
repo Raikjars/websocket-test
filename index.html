@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prueba Ably</title>
+    <title>Prueba Ably - Arrays</title>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
         body {
@@ -11,6 +11,36 @@
             max-width: 800px;
             margin: 20px auto;
             padding: 0 20px;
+        }
+        .array-container {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .array-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .array-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .array-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .array-button.false {
+            background-color: #dc3545;
+            color: white;
+        }
+        .array-button.true {
+            background-color: #28a745;
+            color: white;
         }
         #logs {
             background-color: #f5f5f5;
@@ -20,28 +50,52 @@
             height: 200px;
             overflow-y: auto;
         }
-        button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
+        .status {
+            padding: 10px;
             border-radius: 5px;
-            cursor: pointer;
+            margin: 10px 0;
         }
-        button:hover {
-            background-color: #0056b3;
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
 <body>
-    <h1>Prueba de Conexión Ably</h1>
+    <h1>Mezcla de Arrays en Tiempo Real</h1>
+    
+    <div id="status" class="status disconnected">Desconectado</div>
+    
+    <div class="array-container">
+        <div class="array-title">Tu Array:</div>
+        <div id="myArray" class="array-buttons"></div>
+    </div>
+
+    <div class="array-container">
+        <div class="array-title">Array del Otro Usuario:</div>
+        <div id="otherArray" class="array-buttons"></div>
+    </div>
+
+    <div class="array-container">
+        <div class="array-title">Array Combinado:</div>
+        <div id="combinedArray" class="array-buttons"></div>
+    </div>
+
     <div id="logs"></div>
-    <button onclick="enviarMensaje()">Enviar Mensaje de Prueba</button>
 
     <script>
         // Configuración de Ably
         const ably = new Ably.Realtime('2r98MA.r42eNQ:v2ef69vFT-SWpLRqt4kuIlcDfPHXoapfDkRgwmFanT4');
         const channel = ably.channels.get('canal-prueba');
+        
+        // Arrays
+        let myArray = [false, false, false, false, false];
+        let otherArray = [false, false, false, false, false];
+        const arraySize = 5;
 
         // Función para agregar logs
         function agregarLog(mensaje) {
@@ -52,28 +106,113 @@
             logs.scrollTop = logs.scrollHeight;
         }
 
+        // Crear botones para los arrays
+        function crearBotonesArray() {
+            const myArrayDiv = document.getElementById('myArray');
+            const otherArrayDiv = document.getElementById('otherArray');
+            const combinedArrayDiv = document.getElementById('combinedArray');
+            
+            myArrayDiv.innerHTML = '';
+            otherArrayDiv.innerHTML = '';
+            combinedArrayDiv.innerHTML = '';
+
+            for (let i = 0; i < arraySize; i++) {
+                // Botones para mi array
+                const button = document.createElement('button');
+                button.className = 'array-button false';
+                button.textContent = 'Falso';
+                button.onclick = () => toggleValor(i);
+                myArrayDiv.appendChild(button);
+
+                // Botones para el array del otro usuario
+                const otherButton = document.createElement('button');
+                otherButton.className = 'array-button false';
+                otherButton.textContent = 'Falso';
+                otherButton.disabled = true;
+                otherArrayDiv.appendChild(otherButton);
+
+                // Botones para el array combinado
+                const combinedButton = document.createElement('button');
+                combinedButton.className = 'array-button false';
+                combinedButton.textContent = 'Falso';
+                combinedButton.disabled = true;
+                combinedArrayDiv.appendChild(combinedButton);
+            }
+        }
+
+        // Actualizar visualización de los arrays
+        function actualizarArrays() {
+            const myButtons = document.getElementById('myArray').children;
+            const otherButtons = document.getElementById('otherArray').children;
+            const combinedButtons = document.getElementById('combinedArray').children;
+
+            for (let i = 0; i < arraySize; i++) {
+                // Actualizar mi array
+                myButtons[i].textContent = myArray[i] ? 'Verdadero' : 'Falso';
+                myButtons[i].className = `array-button ${myArray[i]}`;
+
+                // Actualizar array del otro usuario
+                otherButtons[i].textContent = otherArray[i] ? 'Verdadero' : 'Falso';
+                otherButtons[i].className = `array-button ${otherArray[i]}`;
+
+                // Actualizar array combinado
+                const combinedValue = myArray[i] || otherArray[i];
+                combinedButtons[i].textContent = combinedValue ? 'Verdadero' : 'Falso';
+                combinedButtons[i].className = `array-button ${combinedValue}`;
+            }
+        }
+
+        // Cambiar valor de un elemento del array
+        function toggleValor(index) {
+            myArray[index] = !myArray[index];
+            actualizarArrays();
+            
+            // Enviar actualización
+            const mensaje = {
+                array: myArray,
+                clientId: ably.connection.id
+            };
+            channel.publish('array-update', mensaje);
+            agregarLog(`Enviando array: ${JSON.stringify(myArray)}`);
+        }
+
         // Evento de conexión
         ably.connection.on('connected', () => {
+            document.getElementById('status').className = 'status connected';
+            document.getElementById('status').textContent = 'Conectado';
             agregarLog('✅ Conectado a Ably');
+            
+            // Enviar array inicial
+            const mensaje = {
+                array: myArray,
+                clientId: ably.connection.id
+            };
+            channel.publish('array-update', mensaje);
         });
 
         ably.connection.on('failed', () => {
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Error de conexión';
             agregarLog('❌ Error de conexión');
         });
 
-        // Suscripción a mensajes
-        channel.subscribe('mensaje', (mensaje) => {
-            agregarLog(`📨 Mensaje recibido: ${mensaje.data}`);
+        // Suscripción a actualizaciones de array
+        channel.subscribe('array-update', (mensaje) => {
+            const data = mensaje.data;
+            
+            // Ignorar mensajes propios
+            if (data.clientId === ably.connection.id) {
+                return;
+            }
+
+            otherArray = data.array;
+            actualizarArrays();
+            agregarLog(`📨 Array recibido: ${JSON.stringify(data.array)}`);
         });
 
-        // Función para enviar mensaje
-        function enviarMensaje() {
-            const mensaje = `Mensaje de prueba ${new Date().toLocaleTimeString()}`;
-            channel.publish('mensaje', mensaje);
-            agregarLog(`📤 Mensaje enviado: ${mensaje}`);
-        }
-
-        // Log inicial
+        // Inicializar
+        crearBotonesArray();
+        actualizarArrays();
         agregarLog('🚀 Iniciando conexión...');
     </script>
 </body>
