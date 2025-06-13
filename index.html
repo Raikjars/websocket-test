@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prueba WebSocket - Arrays Booleanos</title>
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -108,11 +109,12 @@
     </div>
 
     <script>
-        let ws = null;
+        let channel = null;
         let myArray = [false, false, false, false, false];
         let otherArrays = [];
         const arraySize = 5;
         let currentRoom = 'sala-prueba';
+        const ably = new Ably.Realtime('2r98MA.r42eNQ:v2ef69vFT-SWpLRqt4kuIlcDfPHXoapfDkRgwmFanT4'); // Reemplaza con tu API key de Ably
 
         // Función para agregar logs
         function addLog(message) {
@@ -127,8 +129,8 @@
         function joinRoom() {
             const newRoom = document.getElementById('roomId').value.trim();
             if (newRoom && newRoom !== currentRoom) {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.close();
+                if (channel) {
+                    channel.unsubscribe();
                 }
                 currentRoom = newRoom;
                 addLog(`Cambiando a sala: ${currentRoom}`);
@@ -195,59 +197,37 @@
         function toggleValue(index) {
             myArray[index] = !myArray[index];
             updateArrayDisplay();
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                const message = JSON.stringify({
+            if (channel) {
+                const message = {
                     type: 'array',
                     array: myArray,
                     room: currentRoom,
                     timestamp: Date.now()
-                });
-                ws.send(message);
-                addLog(`Enviando array: ${message}`);
+                };
+                channel.publish('array-update', message);
+                addLog(`Enviando array: ${JSON.stringify(message)}`);
             }
             updateCombinedArray();
         }
 
-        // Conectar/Desconectar WebSocket
+        // Conectar/Desconectar
         function toggleConnection() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.close();
+            if (channel) {
+                channel.unsubscribe();
+                channel = null;
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = 'Desconectado';
+                otherArrays = [];
+                updateCombinedArray();
+                addLog('Desconectado del canal');
             } else {
-                const wsUrl = `wss://echo.websocket.org`;
-                addLog(`Conectando a: ${wsUrl}`);
-                ws = new WebSocket(wsUrl);
+                channel = ably.channels.get(currentRoom);
                 
-                ws.onopen = () => {
-                    document.getElementById('status').className = 'status connected';
-                    document.getElementById('status').textContent = 'Conectado';
-                    addLog('Conectado al servidor WebSocket');
-                    
-                    const message = JSON.stringify({
-                        type: 'array',
-                        array: myArray,
-                        room: currentRoom,
-                        timestamp: Date.now()
-                    });
-                    ws.send(message);
-                    addLog(`Enviando array inicial: ${message}`);
-                };
-
-                ws.onclose = () => {
-                    document.getElementById('status').className = 'status disconnected';
-                    document.getElementById('status').textContent = 'Desconectado';
-                    otherArrays = [];
-                    updateCombinedArray();
-                    addLog('Desconectado del servidor WebSocket');
-                };
-
-                ws.onerror = (error) => {
-                    addLog(`Error en WebSocket: ${error.message}`);
-                };
-
-                ws.onmessage = (event) => {
+                channel.subscribe('array-update', (message) => {
                     try {
-                        addLog(`Mensaje recibido: ${event.data}`);
-                        const data = JSON.parse(event.data);
+                        const data = message.data;
+                        addLog(`Mensaje recibido: ${JSON.stringify(data)}`);
+                        
                         if (data.type === 'array' && data.room === currentRoom) {
                             // Verificar si el array ya existe en otherArrays
                             const existingIndex = otherArrays.findIndex(arr => 
@@ -267,7 +247,21 @@
                     } catch (error) {
                         addLog(`Error al procesar mensaje: ${error.message}`);
                     }
+                });
+
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = 'Conectado';
+                addLog('Conectado al canal');
+
+                // Enviar array inicial
+                const message = {
+                    type: 'array',
+                    array: myArray,
+                    room: currentRoom,
+                    timestamp: Date.now()
                 };
+                channel.publish('array-update', message);
+                addLog(`Enviando array inicial: ${JSON.stringify(message)}`);
             }
         }
 
