@@ -65,11 +65,31 @@
             max-height: 200px;
             overflow-y: auto;
         }
+        .room-info {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .room-info input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Prueba WebSocket - Arrays Booleanos</h1>
+        
+        <div class="room-info">
+            <h3>Sala de Conexión</h3>
+            <input type="text" id="roomId" placeholder="ID de la sala" value="sala-prueba">
+            <button onclick="joinRoom()">Unirse a la Sala</button>
+        </div>
+
         <div id="status" class="status disconnected">Desconectado</div>
         
         <div class="array-display">
@@ -92,6 +112,7 @@
         let myArray = [false, false, false, false, false];
         let otherArrays = [];
         const arraySize = 5;
+        let currentRoom = 'sala-prueba';
 
         // Función para agregar logs
         function addLog(message) {
@@ -100,6 +121,19 @@
             entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
             log.appendChild(entry);
             log.scrollTop = log.scrollHeight;
+        }
+
+        // Unirse a una sala
+        function joinRoom() {
+            const newRoom = document.getElementById('roomId').value.trim();
+            if (newRoom && newRoom !== currentRoom) {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+                currentRoom = newRoom;
+                addLog(`Cambiando a sala: ${currentRoom}`);
+                setTimeout(toggleConnection, 1000);
+            }
         }
 
         // Crear botones para el array
@@ -165,7 +199,8 @@
                 const message = JSON.stringify({
                     type: 'array',
                     array: myArray,
-                    timestamp: Date.now() // Agregar timestamp para evitar duplicados
+                    room: currentRoom,
+                    timestamp: Date.now()
                 });
                 ws.send(message);
                 addLog(`Enviando array: ${message}`);
@@ -178,8 +213,9 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.close();
             } else {
-                // Usar el servidor de prueba echo.websocket.org
-                ws = new WebSocket('wss://echo.websocket.org');
+                const wsUrl = `wss://echo.websocket.org`;
+                addLog(`Conectando a: ${wsUrl}`);
+                ws = new WebSocket(wsUrl);
                 
                 ws.onopen = () => {
                     document.getElementById('status').className = 'status connected';
@@ -189,6 +225,7 @@
                     const message = JSON.stringify({
                         type: 'array',
                         array: myArray,
+                        room: currentRoom,
                         timestamp: Date.now()
                     });
                     ws.send(message);
@@ -211,7 +248,7 @@
                     try {
                         addLog(`Mensaje recibido: ${event.data}`);
                         const data = JSON.parse(event.data);
-                        if (data.type === 'array') {
+                        if (data.type === 'array' && data.room === currentRoom) {
                             // Verificar si el array ya existe en otherArrays
                             const existingIndex = otherArrays.findIndex(arr => 
                                 arr.timestamp === data.timestamp
