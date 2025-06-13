@@ -3,298 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prueba WebSocket - Arrays Booleanos</title>
+    <title>Prueba Ably</title>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f0f0f0;
+            margin: 20px auto;
+            padding: 0 20px;
         }
-        .container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .status {
+        #logs {
+            background-color: #f5f5f5;
             padding: 10px;
+            border-radius: 5px;
             margin: 10px 0;
-            border-radius: 4px;
-        }
-        .connected {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .array-display {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #e9ecef;
-            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
         }
         button {
             padding: 10px 20px;
             background-color: #007bff;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 5px;
             cursor: pointer;
         }
         button:hover {
             background-color: #0056b3;
         }
-        .toggle-buttons {
-            display: flex;
-            gap: 10px;
-            margin: 20px 0;
-        }
-        .toggle-buttons button {
-            flex: 1;
-            padding: 15px;
-        }
-        #log {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .room-info {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #e9ecef;
-            border-radius: 4px;
-        }
-        .room-info input {
-            width: 100%;
-            padding: 8px;
-            margin: 5px 0;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Prueba WebSocket - Arrays Booleanos</h1>
-        
-        <div class="room-info">
-            <h3>Sala de Conexión</h3>
-            <input type="text" id="roomId" placeholder="ID de la sala" value="sala-prueba">
-            <button onclick="joinRoom()">Unirse a la Sala</button>
-        </div>
-
-        <div id="status" class="status disconnected">Desconectado</div>
-        
-        <div class="array-display">
-            <h3>Tu Array:</h3>
-            <div id="myArray" class="toggle-buttons"></div>
-        </div>
-
-        <div class="array-display">
-            <h3>Array Combinado:</h3>
-            <div id="combinedArray" class="toggle-buttons"></div>
-        </div>
-
-        <button onclick="toggleConnection()">Conectar/Desconectar</button>
-        
-        <div id="log"></div>
-    </div>
+    <h1>Prueba de Conexión Ably</h1>
+    <div id="logs"></div>
+    <button onclick="enviarMensaje()">Enviar Mensaje de Prueba</button>
 
     <script>
-        let channel = null;
-        let myArray = [false, false, false, false, false];
-        let otherArrays = [];
-        const arraySize = 5;
-        let currentRoom = 'sala-prueba';
+        // Configuración de Ably
         const ably = new Ably.Realtime('2r98MA.r42eNQ:v2ef69vFT-SWpLRqt4kuIlcDfPHXoapfDkRgwmFanT4');
+        const channel = ably.channels.get('canal-prueba');
 
         // Función para agregar logs
-        function addLog(message) {
-            const log = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-            log.appendChild(entry);
-            log.scrollTop = log.scrollHeight;
+        function agregarLog(mensaje) {
+            const logs = document.getElementById('logs');
+            const log = document.createElement('div');
+            log.textContent = `${new Date().toLocaleTimeString()}: ${mensaje}`;
+            logs.appendChild(log);
+            logs.scrollTop = logs.scrollHeight;
         }
 
-        // Unirse a una sala
-        function joinRoom() {
-            const newRoom = document.getElementById('roomId').value.trim();
-            if (newRoom && newRoom !== currentRoom) {
-                if (channel) {
-                    channel.unsubscribe();
-                }
-                currentRoom = newRoom;
-                addLog(`Cambiando a sala: ${currentRoom}`);
-                setTimeout(toggleConnection, 1000);
-            }
-        }
-
-        // Crear botones para el array
-        function createArrayButtons() {
-            const myArrayDiv = document.getElementById('myArray');
-            const combinedArrayDiv = document.getElementById('combinedArray');
-            
-            myArrayDiv.innerHTML = '';
-            combinedArrayDiv.innerHTML = '';
-
-            for (let i = 0; i < arraySize; i++) {
-                // Botones para mi array
-                const button = document.createElement('button');
-                button.textContent = 'Falso';
-                button.style.backgroundColor = '#dc3545';
-                button.onclick = () => toggleValue(i);
-                myArrayDiv.appendChild(button);
-
-                // Botones para el array combinado
-                const combinedButton = document.createElement('button');
-                combinedButton.textContent = 'Falso';
-                combinedButton.style.backgroundColor = '#dc3545';
-                combinedButton.disabled = true;
-                combinedArrayDiv.appendChild(combinedButton);
-            }
-        }
-
-        // Actualizar la visualización del array
-        function updateArrayDisplay() {
-            const buttons = document.getElementById('myArray').children;
-            for (let i = 0; i < arraySize; i++) {
-                buttons[i].textContent = myArray[i] ? 'Verdadero' : 'Falso';
-                buttons[i].style.backgroundColor = myArray[i] ? '#28a745' : '#dc3545';
-            }
-        }
-
-        // Función para combinar arrays
-        function combinarArrays(arrays) {
-            if (arrays.length === 0) return myArray;
-            
-            return arrays.reduce((resultado, array) => {
-                return resultado.map((valor, index) => valor || array[index]);
-            }, myArray);
-        }
-
-        // Actualizar el array combinado
-        function updateCombinedArray() {
-            const combinedArray = combinarArrays(otherArrays);
-            const buttons = document.getElementById('combinedArray').children;
-            
-            for (let i = 0; i < arraySize; i++) {
-                buttons[i].textContent = combinedArray[i] ? 'Verdadero' : 'Falso';
-                buttons[i].style.backgroundColor = combinedArray[i] ? '#28a745' : '#dc3545';
-            }
-            addLog(`Array combinado actualizado: ${JSON.stringify(combinedArray)}`);
-        }
-
-        // Cambiar el valor de un elemento del array
-        function toggleValue(index) {
-            myArray[index] = !myArray[index];
-            updateArrayDisplay();
-            if (channel) {
-                const message = {
-                    type: 'array',
-                    array: myArray,
-                    room: currentRoom,
-                    timestamp: Date.now(),
-                    clientId: ably.connection.id
-                };
-                channel.publish('array-update', message);
-                addLog(`Enviando array: ${JSON.stringify(message)}`);
-            }
-            updateCombinedArray();
-        }
-
-        // Conectar/Desconectar
-        function toggleConnection() {
-            if (channel) {
-                channel.unsubscribe();
-                channel = null;
-                document.getElementById('status').className = 'status disconnected';
-                document.getElementById('status').textContent = 'Desconectado';
-                otherArrays = [];
-                updateCombinedArray();
-                addLog('Desconectado del canal');
-            } else {
-                channel = ably.channels.get(currentRoom);
-                
-                channel.subscribe('array-update', (message) => {
-                    try {
-                        const data = message.data;
-                        addLog(`Mensaje recibido: ${JSON.stringify(data)}`);
-                        
-                        // Ignorar mensajes propios
-                        if (data.clientId === ably.connection.id) {
-                            addLog('Ignorando mensaje propio');
-                            return;
-                        }
-
-                        if (data.type === 'array' && data.room === currentRoom) {
-                            // Verificar si el array ya existe en otherArrays
-                            const existingIndex = otherArrays.findIndex(arr => 
-                                arr.clientId === data.clientId
-                            );
-
-                            if (existingIndex === -1) {
-                                otherArrays.push(data);
-                                addLog(`Nuevo array agregado: ${JSON.stringify(data.array)}`);
-                            } else {
-                                otherArrays[existingIndex] = data;
-                                addLog(`Array actualizado: ${JSON.stringify(data.array)}`);
-                            }
-
-                            updateCombinedArray();
-                        }
-                    } catch (error) {
-                        addLog(`Error al procesar mensaje: ${error.message}`);
-                    }
-                });
-
-                document.getElementById('status').className = 'status connected';
-                document.getElementById('status').textContent = 'Conectado';
-                addLog('Conectado al canal');
-
-                // Enviar array inicial
-                const message = {
-                    type: 'array',
-                    array: myArray,
-                    room: currentRoom,
-                    timestamp: Date.now(),
-                    clientId: ably.connection.id
-                };
-                channel.publish('array-update', message);
-                addLog(`Enviando array inicial: ${JSON.stringify(message)}`);
-            }
-        }
-
-        // Manejar eventos de conexión de Ably
+        // Evento de conexión
         ably.connection.on('connected', () => {
-            addLog('Conectado a Ably');
-        });
-
-        ably.connection.on('disconnected', () => {
-            addLog('Desconectado de Ably');
-            document.getElementById('status').className = 'status disconnected';
-            document.getElementById('status').textContent = 'Desconectado';
+            agregarLog('✅ Conectado a Ably');
         });
 
         ably.connection.on('failed', () => {
-            addLog('Error de conexión con Ably');
-            document.getElementById('status').className = 'status disconnected';
-            document.getElementById('status').textContent = 'Error de conexión';
+            agregarLog('❌ Error de conexión');
         });
 
-        // Inicializar la interfaz
-        createArrayButtons();
-        updateArrayDisplay();
-        updateCombinedArray();
-        addLog('Aplicación iniciada');
+        // Suscripción a mensajes
+        channel.subscribe('mensaje', (mensaje) => {
+            agregarLog(`📨 Mensaje recibido: ${mensaje.data}`);
+        });
+
+        // Función para enviar mensaje
+        function enviarMensaje() {
+            const mensaje = `Mensaje de prueba ${new Date().toLocaleTimeString()}`;
+            channel.publish('mensaje', mensaje);
+            agregarLog(`📤 Mensaje enviado: ${mensaje}`);
+        }
+
+        // Log inicial
+        agregarLog('🚀 Iniciando conexión...');
     </script>
 </body>
 </html> 
