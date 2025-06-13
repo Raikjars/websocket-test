@@ -114,7 +114,7 @@
         let otherArrays = [];
         const arraySize = 5;
         let currentRoom = 'sala-prueba';
-        const ably = new Ably.Realtime('2r98MA.r42eNQ:v2ef69vFT-SWpLRqt4kuIlcDfPHXoapfDkRgwmFanT4'); // Reemplaza con tu API key de Ably
+        const ably = new Ably.Realtime('2r98MA.r42eNQ:v2ef69vFT-SWpLRqt4kuIlcDfPHXoapfDkRgwmFanT4');
 
         // Función para agregar logs
         function addLog(message) {
@@ -202,7 +202,8 @@
                     type: 'array',
                     array: myArray,
                     room: currentRoom,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    clientId: ably.connection.id
                 };
                 channel.publish('array-update', message);
                 addLog(`Enviando array: ${JSON.stringify(message)}`);
@@ -228,10 +229,16 @@
                         const data = message.data;
                         addLog(`Mensaje recibido: ${JSON.stringify(data)}`);
                         
+                        // Ignorar mensajes propios
+                        if (data.clientId === ably.connection.id) {
+                            addLog('Ignorando mensaje propio');
+                            return;
+                        }
+
                         if (data.type === 'array' && data.room === currentRoom) {
                             // Verificar si el array ya existe en otherArrays
                             const existingIndex = otherArrays.findIndex(arr => 
-                                arr.timestamp === data.timestamp
+                                arr.clientId === data.clientId
                             );
 
                             if (existingIndex === -1) {
@@ -258,12 +265,30 @@
                     type: 'array',
                     array: myArray,
                     room: currentRoom,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    clientId: ably.connection.id
                 };
                 channel.publish('array-update', message);
                 addLog(`Enviando array inicial: ${JSON.stringify(message)}`);
             }
         }
+
+        // Manejar eventos de conexión de Ably
+        ably.connection.on('connected', () => {
+            addLog('Conectado a Ably');
+        });
+
+        ably.connection.on('disconnected', () => {
+            addLog('Desconectado de Ably');
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Desconectado';
+        });
+
+        ably.connection.on('failed', () => {
+            addLog('Error de conexión con Ably');
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Error de conexión';
+        });
 
         // Inicializar la interfaz
         createArrayButtons();
